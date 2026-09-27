@@ -130,6 +130,10 @@
     <h1>⚔️ Clan Manager</h1>
     <p>Clash Royale · gestionare membri</p>
     <div class="field">
+      <label>API Key</label>
+      <input type="password" id="api-key" placeholder="eyJ0eX...">
+    </div>
+    <div class="field">
       <label>Tag clan</label>
       <input type="text" id="clan-tag" placeholder="#Q2GC80P8" value="#Q2GC80P8">
     </div>
@@ -158,7 +162,7 @@
     </div>
     <button class="btn-sm" onclick="loadClan()">🔄 Reîncarcă</button>
     <button class="btn-sm" onclick="resetSetup()">↩ Schimbă</button>
-    <span style="font-size:0.65rem;color:var(--muted);opacity:0.6">build v21</span>
+    <span style="font-size:0.65rem;color:var(--muted);opacity:0.6">build v18</span>
   </div>
 
   <div class="tabs-bar">
@@ -226,115 +230,48 @@ function weeksTracked(joinedAt) {
   return 3;
 }
 
-// ── LAST SEEN HELPERS ──────────────────────────────────────────────────────
-function parseLastSeen(lastSeen) {
-  if (!lastSeen) return null;
-  // Format API: "20260926T181000.000Z"
-  try {
-    const s = lastSeen;
-    return new Date(
-      s.substring(0,4), s.substring(4,6)-1, s.substring(6,8),
-      s.substring(9,11), s.substring(11,13), s.substring(13,15)
-    );
-  } catch(e) { return null; }
-}
-
-function lastSeenDays(lastSeen) {
-  const d = parseLastSeen(lastSeen);
-  if (!d) return null;
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
-}
-
-function formatLastSeen(lastSeen) {
-  const days = lastSeenDays(lastSeen);
-  if (days === null) return null;
-  if (days < 1/24) return '🟢 Activ acum';
-  if (days < 1) return '🟢 Activ azi';
-  if (days < 2) return '🟡 Activ ieri';
-  if (days < 3) return '🟠 Inactiv 2 zile';
-  if (days < 7) return `🔴 Inactiv ${Math.floor(days)} zile`;
-  return `🔴 Inactiv ${Math.floor(days/7)} săpt.`;
-}
-
-function isInactiveOver2Days(lastSeen) {
-  const days = lastSeenDays(lastSeen);
-  if (days === null) return false; // nu știm — tratăm conservator
-  return days >= 2;
-}
-
-// ── GET STATUS ─────────────────────────────────────────────────────────────
 function getStatus(m, isTrainingDay) {
   const role = m.role;
   if (role === 'leader' || role === 'coLeader') return { type: 'ignore', priority: -1, actions: [] };
 
   const isNew = isNewMember(m.joinedAt);
-  const tracked = weeksTracked(m.joinedAt);
+  const tracked = weeksTracked(m.joinedAt); // câte săptămâni de istoric real avem
   const w0 = m.weeks[0]?.fame ?? 0;
-  const w1 = tracked >= 2 ? (m.weeks[1]?.fame ?? 0) : null;
+  const w1 = tracked >= 2 ? (m.weeks[1]?.fame ?? 0) : null; // null = n-avem date (nu era în clan)
   const w2 = tracked >= 3 ? (m.weeks[2]?.fame ?? 0) : null;
   const hasElder = role === 'elder';
   const actions = [];
 
-  if (isNew) actions.push({ type: 'new', label: '🆕 Nou în clan', cls: 'b-blue' });
+  if (hasElder && w0 < 300 && !isNew) actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
   if (!hasElder && w0 >= PROMOTE_THRESHOLD) actions.push({ type: 'promote', label: '⬆️ Dă Elder', cls: 'b-purple' });
+  if (isNew) actions.push({ type: 'new', label: '🆕 Nou în clan', cls: 'b-blue' });
 
-  // ── REGULI ELDER ─────────────────────────────────────────────────────────
-  if (hasElder && !isNew) {
-
-    // TREND DESCENDENT: 2000+ acum 2 săpt → sub 1500 săpt trecută → sub 500 acum
-    const trendDown = w2 !== null && w2 >= 2000 && w1 !== null && w1 < 1500 && w0 < 500;
-    if (trendDown) {
-      actions.push({ type: 'elder_trend', label: '⚠️ Trend descendent', cls: 'b-yellow' });
-      // Nu scoatem elder, doar avertizăm
-    }
-
-    // 2 SĂPTĂMÂNI LA RÂND SUB 700 (săpt. trecută + curentă) → scoate direct
-    const twoWeeksLow = w1 !== null && w1 < 700 && w0 < 700;
-    if (twoWeeksLow && !trendDown) {
-      actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
-    }
-
-    // SUB 300 sau 0 fame săpt. curentă
-    if (w0 < 300) {
-      const hadGoodLastWeek = w1 !== null && w1 >= 1500;
-      if (hadGoodLastWeek) {
-        // Verificăm last seen
-        if (isInactiveOver2Days(m.lastSeen)) {
-          // Inactiv 2+ zile — posibil probleme, ține în evidență
-          actions.push({ type: 'elder_check', label: '⚠️ Ține în evidență', cls: 'b-yellow' });
-        } else {
-          // A fost activ recent — nu are scuză, scoatem elderul
-          if (!actions.find(a => a.type === 'demote')) {
-            actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
-          }
-        }
-      } else {
-        // Săpt. trecută era deja slabă (sub 1500) — scoatem direct
-        if (!actions.find(a => a.type === 'demote')) {
-          actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
-        }
-      }
-    }
-  }
-
-  // ── LOGICA GENERALĂ DE KICK ───────────────────────────────────────────────
+  // A jucat deja săptămâna asta -> arată performanța reală, indiferent dacă e nou.
   if (w0 > 0) {
     if (w0 < 300) return { type: 'low_fame', priority: 30, actions };
     if (w0 < PROMOTE_THRESHOLD) return { type: 'ok', priority: 10, actions };
     return { type: 'great', priority: 0, actions };
   }
 
+  // N-a jucat încă săptămâna asta (w0 === 0).
+  // Un membru nou e MEREU protejat aici, indiferent dacă suntem full - devine
+  // candidat de kick doar ca ultimă variantă, dacă absolut nimeni altcineva
+  // nu e un candidat mai bun (vezi applyFullClanRule mai jos).
   if (isNew) return { type: 'new', priority: 5, actions };
 
+  // Membru vechi.
   if (isTrainingDay) {
-    if (w1 === 0 && w2 === 0) return { type: 'kick_urgent', priority: 100, actions };
-    if (w1 === 0) return { type: 'kick_watch', priority: 50, actions };
-    return { type: 'training', priority: 3, actions };
+    // Săptămâna asta nu a început încă - nu numărăm w0=0 ca "n-a jucat".
+    // Judecăm doar pe baza săptămânilor deja încheiate.
+    if (w1 === 0 && w2 === 0) return { type: 'kick_urgent', priority: 100, actions }; // 2 săpt. reale, complete, la rând
+    if (w1 === 0) return { type: 'kick_watch', priority: 50, actions }; // 1 săpt. rea, așteptăm să vedem cum joacă asta
+    return { type: 'training', priority: 3, actions }; // a jucat săpt. trecută, acum e antrenament - nimic de făcut
   }
 
+  // Zi de război normală - evaluăm ultimele săptămâni pentru care avem date reale.
   if (w1 === 0 && w2 === 0) return { type: 'kick_urgent', priority: 100, actions };
   if (w1 === 0) return { type: 'kick_urgent', priority: 90, actions };
-  return { type: 'kick_watch', priority: 50, actions };
+  return { type: 'kick_watch', priority: 50, actions }; // w1 e null (fără date) sau > 0
 }
 
 // Membrul nou devine candidat de kick DOAR dacă suntem full ȘI absolut
@@ -378,21 +315,21 @@ function dotColor(f) {
 
 function fameColor(f) { return dotColor(f); }
 
-
+// ── LOAD ───────────────────────────────────────────────────────────────────
 async function loadClan() {
+  const apiKey = document.getElementById('api-key').value.trim();
   const clanTag = document.getElementById('clan-tag').value.trim();
-  if (!clanTag) { showSetupError('Completează tagul.'); return; }
-
+  if (!apiKey || !clanTag) { showSetupError('Completează API key-ul și tagul.'); return; }
 
   document.getElementById('setup-wrap').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loading-wrap').style.display = 'flex';
 
-   try {
+  try {
     const res = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clanTag }) 
+      body: JSON.stringify({ apiKey, clanTag })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -403,7 +340,6 @@ async function loadClan() {
     showSetupError('Eroare: ' + e.message);
   }
 }
-
 
 function processData({ clan, warLog, currentWar }) {
   cachedClan = clan;
@@ -440,10 +376,8 @@ function processData({ clan, warLog, currentWar }) {
       warMaps[0]?.[m.tag] || { fame: 0, decksUsed: 0 },
       warMaps[1]?.[m.tag] || { fame: 0, decksUsed: 0 },
     ];
-    // lastSeen vine direct din clan.memberList (câmpul e prezent în API)
-    const lastSeen = m.lastSeen || null;
-    const status = getStatus({ ...m, weeks, lastSeen }, isTrainingDay);
-    return { ...m, weeks, lastSeen, status };
+    const status = getStatus({ ...m, weeks }, isTrainingDay);
+    return { ...m, weeks, status };
   });
   cachedMembers = applyFullClanRule(cachedMembers, members.length >= 50, isTrainingDay);
 
@@ -506,9 +440,7 @@ function renderPriority() {
   const actionItems = [
     ...urgent.map(m => ({ name: m.name, action: 'Kick', cls: 'b-red', reason: '0 fame 2+ săptămâni' })),
     ...watch.map(m => ({ name: m.name, action: 'Verifică', cls: 'b-yellow', reason: '0 săpt. asta, a jucat înainte' })),
-    ...members.filter(m => m.status.actions?.some(a => a.type === 'demote')).map(m => ({ name: m.name, action: 'Scoate Elder', cls: 'b-orange', reason: 'fame prea mic' })),
-    ...members.filter(m => m.status.actions?.some(a => a.type === 'elder_check')).map(m => ({ name: m.name, action: 'Verifică Elder', cls: 'b-yellow', reason: `inactiv ${Math.floor(lastSeenDays(m.lastSeen)||0)} zile — posibil probleme` })),
-    ...members.filter(m => m.status.actions?.some(a => a.type === 'elder_trend')).map(m => ({ name: m.name, action: 'Atenție trend', cls: 'b-yellow', reason: 'scădere consistentă de fame' })),
+    ...members.filter(m => m.status.actions?.some(a => a.type === 'demote')).map(m => ({ name: m.name, action: 'Scoate Elder', cls: 'b-orange', reason: 'sub 300 fame' })),
     ...members.filter(m => m.status.actions?.some(a => a.type === 'promote')).map(m => ({ name: m.name, action: 'Dă Elder', cls: 'b-purple', reason: `${PROMOTE_THRESHOLD}+ fame` })),
   ];
 
@@ -574,44 +506,14 @@ function renderAll() {
 // ── ELDER ──────────────────────────────────────────────────────────────────
 function renderElder() {
   const members = cachedMembers;
-
-  // Scoate elderul direct
-  const demote = filterMembers(members.filter(m =>
-    m.role === 'elder' && m.status.actions?.some(a => a.type === 'demote')
-  ));
-  // Ține în evidență — inactiv 2+ zile, săpt. trecută era bun
-  const check = filterMembers(members.filter(m =>
-    m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_check') && !m.status.actions?.some(a => a.type === 'demote')
-  ));
-  // Trend descendent — avertizare
-  const trend = filterMembers(members.filter(m =>
-    m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_trend') && !m.status.actions?.some(a => a.type === 'demote') && !m.status.actions?.some(a => a.type === 'elder_check')
-  ));
-  // Merită elder (membri normali)
-  const promote = filterMembers(members.filter(m =>
-    m.role === 'member' && m.status.actions?.some(a => a.type === 'promote')
-  ));
-  // Elderi ok
-  const elderOk = filterMembers(members.filter(m =>
-    m.role === 'elder' &&
-    !m.status.actions?.some(a => a.type === 'demote') &&
-    !m.status.actions?.some(a => a.type === 'elder_check') &&
-    !m.status.actions?.some(a => a.type === 'elder_trend')
-  ));
+  const demote = filterMembers(members.filter(m => m.role === 'elder' && m.status.actions?.some(a => a.type === 'demote')));
+  const elderOk = filterMembers(members.filter(m => m.role === 'elder' && !m.status.actions?.some(a => a.type === 'demote')));
+  const promote = filterMembers(members.filter(m => m.role === 'member' && m.status.actions?.some(a => a.type === 'promote')));
 
   let html = '';
-
   if (demote.length) {
-    html += `<div class="sec-div">⬇️ Scoate Elderul <span class="sec-count">${demote.length}</span></div>`;
+    html += `<div class="sec-div">⬇️ Scoate Elderul — sub 300 fame <span class="sec-count">${demote.length}</span></div>`;
     html += demote.map(m => renderMember(m)).join('');
-  }
-  if (check.length) {
-    html += `<div class="sec-div">⚠️ Ține în evidență — inactiv 2+ zile, verifica dacă are probleme <span class="sec-count">${check.length}</span></div>`;
-    html += check.map(m => renderMember(m)).join('');
-  }
-  if (trend.length) {
-    html += `<div class="sec-div">📉 Trend descendent — a fost activ, acum scade <span class="sec-count">${trend.length}</span></div>`;
-    html += trend.map(m => renderMember(m)).join('');
   }
   if (promote.length) {
     html += `<div class="sec-div">⬆️ Merită Elder — ${PROMOTE_THRESHOLD}+ fame <span class="sec-count">${promote.length}</span></div>`;
@@ -679,10 +581,10 @@ function renderRecruit() {
 
   const suggestions = [];
   if (isFull && kickCandidates > 0) suggestions.push(`⚠️ Clanul e full. Ai ${kickCandidates} membri cu kick urgent — dă-i afară pentru a face loc.`);
-
+  if (!isFull && slotsLeft <= 5) suggestions.push(`📢 Mai ai doar ${slotsLeft} locuri libere. Anunță pe canal că recrutezi!`);
   if (!isFull && slotsLeft > 5) suggestions.push(`✅ Ai ${slotsLeft} locuri libere. Poți accepta membri noi fără să dai pe nimeni afară.`);
-
-
+  if (avgFame < 1000) suggestions.push(`📈 Media de fame e ${avgFame.toLocaleString()} — scăzut. Încearcă să recrutezi jucători mai activi.`);
+  if (cachedClan?.requiredTrophies) suggestions.push(`🏆 Limita de trofee: ${cachedClan.requiredTrophies.toLocaleString()}. Ajustat recent la 10.000.`);
 
   let html = `
     <div class="stats-grid">
@@ -693,7 +595,7 @@ function renderRecruit() {
     </div>
 
     <div class="action-box">
-      
+      <h3>💡 Sugestii recrutare</h3>
       <div class="action-list">
         ${suggestions.map(s => `<div class="action-item" style="font-size:0.85rem">${s}</div>`).join('')}
       </div>
@@ -702,14 +604,14 @@ function renderRecruit() {
 
   if (newMembers.length) {
     html += `<div class="sec-div">🆕 Membri noi în ultimele 7 zile <span class="sec-count">${newMembers.length}</span></div>`;
-    html += newMembers.map(m => renderMember(m)).join('');
+    html += newMembers.map(m => renderMember(m, { showRemoveNew: true })).join('');
   }
 
   return html;
 }
 
 // ── MEMBER CARD ────────────────────────────────────────────────────────────
-function renderMember(m) {
+function renderMember(m, opts = {}) {
   const sm = STATUS_META[m.status.type] || STATUS_META['ok'];
   const weekLabels = ['Curentă', 'Trecută', 'Acum 2 săpt.'];
   const tracked = weeksTracked(m.joinedAt);
@@ -727,16 +629,12 @@ function renderMember(m) {
 
   const isNew = isNewMember(m.joinedAt);
   const joinedLabel = m.joinedAt ? formatJoined(m.joinedAt) : '';
+  // Arătăm eticheta mică "🆕" separat doar dacă statusul principal nu e deja
+  // "new" (adică membrul e nou, DAR a jucat deja și are un status real de arătat)
   const showNewTag = isNew && m.status.type !== 'new';
-  const canFlag = m.role !== 'leader' && m.role !== 'coLeader' && !isNew;
-
-  // Last seen
-  const lastSeenLabel = formatLastSeen(m.lastSeen);
-  const lastSeenDaysVal = lastSeenDays(m.lastSeen);
-  const lastSeenColor = lastSeenDaysVal === null ? 'var(--muted)'
-    : lastSeenDaysVal < 1 ? 'var(--green)'
-    : lastSeenDaysVal < 2 ? 'var(--yellow)'
-    : 'var(--red)';
+  // Butonul de ștergere din "membri noi" apare doar acolo unde e cerut explicit
+  // (secțiunea Recrutare), nu pe orice card de membru.
+  const showRemoveNew = !!opts.showRemoveNew && isNew;
 
   return `
     <div class="member ${sm.border}">
@@ -744,7 +642,6 @@ function renderMember(m) {
         <div class="member-name">${m.name}</div>
         <div class="member-meta">${roleLabel(m.role)} · ${(m.trophies||0).toLocaleString()} 🏆</div>
         ${joinedLabel ? `<div class="member-joined">📅 ${joinedLabel}</div>` : ''}
-        ${lastSeenLabel ? `<div class="member-joined" style="color:${lastSeenColor}">👁 ${lastSeenLabel}</div>` : ''}
         <div class="weeks-row">${dots}</div>
       </div>
       <div class="member-right">
@@ -753,16 +650,16 @@ function renderMember(m) {
           ${showNewTag ? `<span class="badge b-blue">🆕 Nou</span>` : ''}
           ${extraBadges}
         </div>
-        ${canFlag ? `<button class="btn-sm" onclick="markAsNew('${m.tag}')" title="Chiar a intrat recent și tool-ul nu l-a prins? Apasă aici.">🆕 A intrat recent</button>` : ''}
+        ${showRemoveNew ? `<button class="btn-sm" onclick="removeNewMember('${m.tag}')" title="Scoate-l din lista de membri noi.">🗑️ Șterge membru nou</button>` : ''}
       </div>
     </div>
   `;
 }
 
-async function markAsNew(tag) {
+async function removeNewMember(tag) {
   const clanTag = document.getElementById('clan-tag').value.trim();
   try {
-    await fetch('/api/mark-new', {
+    await fetch('/api/remove-new', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clanTag, tag })
