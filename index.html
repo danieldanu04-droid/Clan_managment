@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clan Manager ⚔️</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e18; --surface: #161929; --surface2: #1e2236; --surface3: #252a42;
+    --border: #2a2f4a; --accent: #6c63ff; --accent2: #a78bfa;
+    --red: #f87171; --orange: #fb923c; --yellow: #fbbf24;
+    --green: #34d399; --purple: #c084fc; --blue: #60a5fa;
+    --text: #e8eaf6; --muted: #7b80a8; --muted2: #9ca3c8;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+  /* ── SETUP ── */
+  .setup-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .setup-box { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; width: 100%; max-width: 420px; }
+  .setup-box h1 { font-size: 1.6rem; font-weight: 800; text-align: center; margin-bottom: 6px; }
+  .setup-box p { color: var(--muted); font-size: 0.85rem; text-align: center; margin-bottom: 28px; }
+  .field { margin-bottom: 16px; }
+  .field label { font-size: 0.75rem; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px; }
+  .field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.92rem; outline: none; transition: border-color 0.2s; }
+  .field input:focus { border-color: var(--accent); }
+  .btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 13px; font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 4px; transition: opacity 0.2s; }
+  .btn-primary:hover { opacity: 0.88; }
+
+  /* ── LAYOUT ── */
+  .app { display: none; flex-direction: column; min-height: 100vh; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+  .topbar-title { font-weight: 800; font-size: 1.05rem; }
+  .topbar-sub { font-size: 0.75rem; color: var(--muted); }
+  .search-wrap { flex: 1; min-width: 180px; max-width: 280px; position: relative; }
+  .search-wrap input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px 8px 34px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.85rem; pointer-events: none; }
+  .btn-sm { background: var(--surface2); border: 1px solid var(--border); color: var(--muted2); border-radius: 8px; padding: 7px 13px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; white-space: nowrap; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent2); }
+  .full-pill { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); border-radius: 20px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; }
+
+  /* ── TABS ── */
+  .tabs-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 2px; overflow-x: auto; }
+  .tab { padding: 13px 16px; font-size: 0.82rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Inter', sans-serif; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  /* ── CONTENT ── */
+  .content { padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+  /* ── STATS ROW ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat-val { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+  .stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── ACTION SUMMARY ── */
+  .action-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+  .action-box h3 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 10px; }
+  .action-list { display: flex; flex-direction: column; gap: 6px; }
+  .action-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+  .action-name { font-weight: 600; }
+  .action-reason { color: var(--muted); font-size: 0.78rem; }
+
+  /* ── SECTION DIVIDER ── */
+  .sec-div { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 0 6px; border-top: 1px solid var(--border); margin-top: 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .sec-div:first-child { border-top: none; margin-top: 0; }
+  .sec-count { background: var(--surface3); border-radius: 20px; padding: 1px 8px; font-size: 0.68rem; }
+
+  /* ── MEMBER CARD ── */
+  .member { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; transition: border-color 0.15s; }
+  .member:hover { border-color: var(--accent); }
+  .member.urgent { border-left: 3px solid var(--red); }
+  .member.watch { border-left: 3px solid var(--yellow); }
+  .member.low { border-left: 3px solid var(--orange); }
+  .member.good { border-left: 3px solid var(--green); }
+  .member.great { border-left: 3px solid var(--purple); }
+  .member-name { font-weight: 700; font-size: 0.95rem; }
+  .member-meta { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+  .member-joined { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .weeks-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .week-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .week-dot { width: 13px; height: 13px; border-radius: 50%; }
+  .week-fame { font-size: 0.65rem; color: var(--muted); }
+  .week-lbl { font-size: 0.6rem; color: var(--muted); }
+  .member-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  .badge { font-size: 0.7rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .b-red { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+  .b-orange { background: rgba(251,146,60,0.12); color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+  .b-yellow { background: rgba(251,191,36,0.12); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+  .b-green { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+  .b-purple { background: rgba(192,132,252,0.12); color: var(--purple); border: 1px solid rgba(192,132,252,0.25); }
+  .b-blue { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+  .b-muted { background: rgba(139,144,184,0.08); color: var(--muted); border: 1px solid rgba(139,144,184,0.15); }
+
+  /* ── EMPTY ── */
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.9rem; }
+
+  /* ── ERROR/LOAD ── */
+  .error-box { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); border-radius: 12px; padding: 14px 16px; color: var(--red); font-size: 0.875rem; margin-bottom: 14px; }
+  .loading-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--muted); }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── TOP LIST ── */
+  .top-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .top-item:last-child { border-bottom: none; }
+  .top-rank { font-size: 1rem; font-weight: 800; color: var(--muted); min-width: 28px; }
+  .top-rank.gold { color: #fbbf24; }
+  .top-rank.silver { color: #9ca3af; }
+  .top-rank.bronze { color: #b45309; }
+  .top-name { font-weight: 600; flex: 1; }
+  .top-fame { font-weight: 700; color: var(--green); }
+
+  @media (max-width: 540px) {
+    .member { grid-template-columns: 1fr; }
+    .member-right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="setup-wrap" id="setup-wrap">
+  <div class="setup-box">
+    <h1>⚔️ Clan Manager</h1>
+    <p>Clash Royale · gestionare membri</p>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="api-key" placeholder="eyJ0eX...">
+    </div>
+    <div class="field">
+      <label>Tag clan</label>
+      <input type="text" id="clan-tag" placeholder="#Q2GC80P8" value="#Q2GC80P8">
+    </div>
+    <div id="setup-error"></div>
+    <button class="btn-primary" onclick="loadClan()">Încarcă clanul</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-wrap" id="loading-wrap" style="display:none">
+  <div class="spinner"></div>
+  <div>Se încarcă datele...</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="tb-name">—</div>
+      <div class="topbar-sub" id="tb-sub">—</div>
+    </div>
+    <span id="tb-full" style="display:none" class="full-pill">⚠️ FULL 50/50</span>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Caută jucător..." oninput="onSearch()">
+    </div>
+    <button class="btn-sm" onclick="loadClan()">🔄 Reîncarcă</button>
+    <button class="btn-sm" onclick="resetSetup()">↩ Schimbă</button>
+    <span style="font-size:0.65rem;color:var(--muted);opacity:0.6">build v21</span>
+  </div>
+
+  <div class="tabs-bar">
+    <button class="tab active" onclick="switchTab('priority', this)">🎯 Prioritate kick</button>
+    <button class="tab" onclick="switchTab('all', this)">👥 Toți membrii</button>
+    <button class="tab" onclick="switchTab('elder', this)">🔹 Elderi</button>
+    <button class="tab" onclick="switchTab('top', this)">🏆 Top activi</button>
+    <button class="tab" onclick="switchTab('recruit', this)">📋 Recrutare</button>
+  </div>
+
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let currentTab = 'priority';
+let searchQuery = '';
+let cachedMembers = [];
+let cachedClan = null;
+let cachedWarsCount = 0;
+let cachedIsTrainingDay = false;
+let currentRaceStart = null; // timestamp start săptămână curentă
+
+// ── REGULI ─────────────────────────────────────────────────────────────────
+const NEW_MEMBER_DAYS = 7; // dacă a intrat în ultimele 7 zile = nou
+const PROMOTE_THRESHOLD = 2300; // fame minim pentru sugestia de Elder
+
+function isNewMember(joinedAt) {
+  if (!joinedAt) return false;
+  const joined = new Date(
+    joinedAt.substring(0,4), joinedAt.substring(4,6)-1, joinedAt.substring(6,8),
+    joinedAt.substring(9,11), joinedAt.substring(11,13), joinedAt.substring(13,15)
+  );
+  const diffDays = (Date.now() - joined.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays <= NEW_MEMBER_DAYS;
+}
+
+function formatJoined(joinedAt) {
+  if (!joinedAt) return '';
+  const joined = new Date(
+    joinedAt.substring(0,4), joinedAt.substring(4,6)-1, joinedAt.substring(6,8)
+  );
+  const diffDays = Math.floor((Date.now() - joined.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return '👀 Urmărit din azi';
+  if (diffDays === 1) return '👀 Urmărit din ieri';
+  if (diffDays < 7) return `👀 Urmărit de ${diffDays} zile`;
+  if (diffDays < 30) return `👀 Urmărit de ${Math.floor(diffDays/7)} săpt.`;
+  return `👀 Urmărit de ${Math.floor(diffDays/30)} luni`;
+}
+
+// Câte săptămâni de istoric real avem despre acest membru. Dacă a intrat
+// acum 3 zile, nu are sens să-i arătăm 3 bile (3 săptămâni) - săptămânile
+// dinaintea intrării lui în clan sunt "0" doar pentru că nu era acolo, nu
+// pentru că a lipsit de la război. Necunoscut (membru vechi) → presupunem
+// istoric complet, pentru că nu avem cum să știm altfel.
+function weeksTracked(joinedAt) {
+  if (!joinedAt) return 3;
+  const joined = new Date(
+    joinedAt.substring(0,4), joinedAt.substring(4,6)-1, joinedAt.substring(6,8),
+    joinedAt.substring(9,11), joinedAt.substring(11,13), joinedAt.substring(13,15)
+  );
+  const diffDays = (Date.now() - joined.getTime()) / (1000 * 60 * 60 * 24);
+  if (diffDays < 7) return 1;
+  if (diffDays < 14) return 2;
+  return 3;
+}
+
+// ── LAST SEEN HELPERS ──────────────────────────────────────────────────────
+function parseLastSeen(lastSeen) {
+  if (!lastSeen) return null;
+  // Format API: "20260926T181000.000Z"
+  try {
+    const s = lastSeen;
+    return new Date(
+      s.substring(0,4), s.substring(4,6)-1, s.substring(6,8),
+      s.substring(9,11), s.substring(11,13), s.substring(13,15)
+    );
+  } catch(e) { return null; }
+}
+
+function lastSeenDays(lastSeen) {
+  const d = parseLastSeen(lastSeen);
+  if (!d) return null;
+  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+}
+
+function formatLastSeen(lastSeen) {
+  const days = lastSeenDays(lastSeen);
+  if (days === null) return null;
+  if (days < 1/24) return '🟢 Activ acum';
+  if (days < 1) return '🟢 Activ azi';
+  if (days < 2) return '🟡 Activ ieri';
+  if (days < 3) return '🟠 Inactiv 2 zile';
+  if (days < 7) return `🔴 Inactiv ${Math.floor(days)} zile`;
+  return `🔴 Inactiv ${Math.floor(days/7)} săpt.`;
+}
+
+function isInactiveOver2Days(lastSeen) {
+  const days = lastSeenDays(lastSeen);
+  if (days === null) return false; // nu știm — tratăm conservator
+  return days >= 2;
+}
+
+// ── GET STATUS ─────────────────────────────────────────────────────────────
+function getStatus(m, isTrainingDay) {
+  const role = m.role;
+  if (role === 'leader' || role === 'coLeader') return { type: 'ignore', priority: -1, actions: [] };
+
+  const isNew = isNewMember(m.joinedAt);
+  const tracked = weeksTracked(m.joinedAt);
+  const w0 = m.weeks[0]?.fame ?? 0;
+  const w1 = tracked >= 2 ? (m.weeks[1]?.fame ?? 0) : null;
+  const w2 = tracked >= 3 ? (m.weeks[2]?.fame ?? 0) : null;
+  const hasElder = role === 'elder';
+  const actions = [];
+
+  if (isNew) actions.push({ type: 'new', label: '🆕 Nou în clan', cls: 'b-blue' });
+  if (!hasElder && w0 >= PROMOTE_THRESHOLD) actions.push({ type: 'promote', label: '⬆️ Dă Elder', cls: 'b-purple' });
+
+  // ── REGULI ELDER ─────────────────────────────────────────────────────────
+  if (hasElder && !isNew) {
+
+    // TREND DESCENDENT: 2000+ acum 2 săpt → sub 1500 săpt trecută → sub 500 acum
+    const trendDown = w2 !== null && w2 >= 2000 && w1 !== null && w1 < 1500 && w0 < 500;
+    if (trendDown) {
+      actions.push({ type: 'elder_trend', label: '⚠️ Trend descendent', cls: 'b-yellow' });
+      // Nu scoatem elder, doar avertizăm
+    }
+
+    // 2 SĂPTĂMÂNI LA RÂND SUB 700 (săpt. trecută + curentă) → scoate direct
+    const twoWeeksLow = w1 !== null && w1 < 700 && w0 < 700;
+    if (twoWeeksLow && !trendDown) {
+      actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
+    }
+
+    // SUB 300 sau 0 fame săpt. curentă
+    if (w0 < 300) {
+      const hadGoodLastWeek = w1 !== null && w1 >= 1500;
+      if (hadGoodLastWeek) {
+        // Verificăm last seen
+        if (isInactiveOver2Days(m.lastSeen)) {
+          // Inactiv 2+ zile — posibil probleme, ține în evidență
+          actions.push({ type: 'elder_check', label: '⚠️ Ține în evidență', cls: 'b-yellow' });
+        } else {
+          // A fost activ recent — nu are scuză, scoatem elderul
+          if (!actions.find(a => a.type === 'demote')) {
+            actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
+          }
+        }
+      } else {
+        // Săpt. trecută era deja slabă (sub 1500) — scoatem direct
+        if (!actions.find(a => a.type === 'demote')) {
+          actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
+        }
+      }
+    }
+  }
+
+  // ── LOGICA GENERALĂ DE KICK ───────────────────────────────────────────────
+  if (w0 > 0) {
+    if (w0 < 300) return { type: 'low_fame', priority: 30, actions };
+    if (w0 < PROMOTE_THRESHOLD) return { type: 'ok', priority: 10, actions };
+    return { type: 'great', priority: 0, actions };
+  }
+
+  if (isNew) return { type: 'new', priority: 5, actions };
+
+  if (isTrainingDay) {
+    if (w1 === 0 && w2 === 0) return { type: 'kick_urgent', priority: 100, actions };
+    if (w1 === 0) return { type: 'kick_watch', priority: 50, actions };
+    return { type: 'training', priority: 3, actions };
+  }
+
+  if (w1 === 0 && w2 === 0) return { type: 'kick_urgent', priority: 100, actions };
+  if (w1 === 0) return { type: 'kick_urgent', priority: 90, actions };
+  return { type: 'kick_watch', priority: 50, actions };
+}
+
+// Membrul nou devine candidat de kick DOAR dacă suntem full ȘI absolut
+// nimeni altcineva (mai vechi) nu e deja un candidat mai bun de scos -
+// adică toți ceilalți chiar au jucat săptămâna asta (sau au istoric ok).
+// Prioritatea e mereu pe cei vechi care nu joacă, niciodată pe cel nou.
+function applyFullClanRule(entries, isFull, isTrainingDay) {
+  if (!isFull || isTrainingDay) return entries; // în antrenament nimeni n-a apucat să joace, nu forțăm nimic
+  const hasOtherCandidate = entries.some(e => e.status.type === 'kick_urgent' || e.status.type === 'kick_watch');
+  if (hasOtherCandidate) return entries; // există deja cineva mai potrivit de scos - nu-l atingem pe cel nou
+  return entries.map(e => {
+    const w0 = e.weeks[0]?.fame ?? 0;
+    if (e.status.type === 'new' && w0 === 0) {
+      return { ...e, status: { type: 'kick_urgent', priority: 80, actions: e.status.actions } };
+    }
+    return e;
+  });
+}
+
+const STATUS_META = {
+  kick_urgent: { label: '🔴 Kick urgent', cls: 'b-red', border: 'urgent' },
+  kick_watch:  { label: '🟡 Verifică', cls: 'b-yellow', border: 'watch' },
+  low_fame:    { label: '🟠 Fame mic', cls: 'b-orange', border: 'low' },
+  ok:          { label: '🟢 OK', cls: 'b-green', border: 'good' },
+  great:       { label: '🟣 Performanță excelentă', cls: 'b-purple', border: 'great' },
+  new:         { label: '🆕 Nou', cls: 'b-blue', border: 'good' },
+  training:    { label: '🏋️ Antrenament', cls: 'b-muted', border: 'good' },
+  ignore:      { label: '—', cls: 'b-muted', border: '' },
+};
+
+function roleLabel(r) {
+  return { leader:'👑 Lider', coLeader:'⭐ Co-lider', elder:'🔹 Elder', member:'👤 Membru' }[r] || r;
+}
+
+function dotColor(f) {
+  if (f === 0) return 'var(--red)';
+  if (f < 300) return 'var(--orange)';
+  if (f < PROMOTE_THRESHOLD) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function fameColor(f) { return dotColor(f); }
+
+// ── LOAD ───────────────────────────────────────────────────────────────────
+async function loadClan() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  const clanTag = document.getElementById('clan-tag').value.trim();
+  if (!apiKey || !clanTag) { showSetupError('Completează API key-ul și tagul.'); return; }
+
+  document.getElementById('setup-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loading-wrap').style.display = 'flex';
+
+  try {
+    const res = await fetch('/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, clanTag })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    processData(data);
+  } catch(e) {
+    document.getElementById('loading-wrap').style.display = 'none';
+    document.getElementById('setup-wrap').style.display = 'flex';
+    showSetupError('Eroare: ' + e.message);
+  }
+}
+
+function processData({ clan, warLog, currentWar }) {
+  cachedClan = clan;
+  const members = clan.memberList || [];
+  const wars = (warLog.items || []).slice(0, 3);
+  cachedWarsCount = wars.length;
+
+  const warMaps = wars.map(war => {
+    const map = {};
+    (war.standings || []).forEach(s => {
+      (s.clan?.participants || []).forEach(p => {
+        map[p.tag] = { fame: p.fame || 0, decksUsed: p.decksUsed || 0 };
+      });
+    });
+    return map;
+  });
+
+  const currentMap = {};
+  if (currentWar?.clan?.participants) {
+    currentWar.clan.participants.forEach(p => {
+      currentMap[p.tag] = { fame: p.fame || 0, decksUsed: p.decksUsed || 0 };
+    });
+  }
+
+  // Zilele de antrenament (înainte să înceapă zilele de război) - fame-ul
+  // săptămânii curente e 0 pentru absolut toată lumea, nu doar pentru cei
+  // inactivi, pentru că pur și simplu nu s-au tras încă lupte de război.
+  const isTrainingDay = !!currentWar && currentWar.periodType && currentWar.periodType !== 'warDay';
+  cachedIsTrainingDay = isTrainingDay;
+
+  cachedMembers = members.map(m => {
+    const weeks = [
+      currentMap[m.tag] || { fame: 0, decksUsed: 0 },
+      warMaps[0]?.[m.tag] || { fame: 0, decksUsed: 0 },
+      warMaps[1]?.[m.tag] || { fame: 0, decksUsed: 0 },
+    ];
+    // lastSeen vine direct din clan.memberList (câmpul e prezent în API)
+    const lastSeen = m.lastSeen || null;
+    const status = getStatus({ ...m, weeks, lastSeen }, isTrainingDay);
+    return { ...m, weeks, lastSeen, status };
+  });
+  cachedMembers = applyFullClanRule(cachedMembers, members.length >= 50, isTrainingDay);
+
+  // Topbar
+  document.getElementById('tb-name').textContent = clan.name + ' ' + clan.tag;
+  document.getElementById('tb-sub').textContent = `${members.length}/50 membri · Istoric ${wars.length + 1} săptămâni`;
+  const fullPill = document.getElementById('tb-full');
+  fullPill.style.display = members.length >= 50 ? 'inline-block' : 'none';
+
+  document.getElementById('loading-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  renderTab(currentTab);
+}
+
+// ── TABS ───────────────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderTab(tab);
+}
+
+function onSearch() {
+  searchQuery = document.getElementById('search').value.trim().toLowerCase();
+  renderTab(currentTab);
+}
+
+function filterMembers(list) {
+  if (!searchQuery) return list;
+  return list.filter(m => m.name.toLowerCase().includes(searchQuery));
+}
+
+function renderTab(tab) {
+  const el = document.getElementById('content');
+  if (tab === 'priority') el.innerHTML = renderPriority();
+  else if (tab === 'all') el.innerHTML = renderAll();
+  else if (tab === 'elder') el.innerHTML = renderElder();
+  else if (tab === 'top') el.innerHTML = renderTop();
+  else if (tab === 'recruit') el.innerHTML = renderRecruit();
+}
+
+// ── PRIORITY ───────────────────────────────────────────────────────────────
+function renderPriority() {
+  const members = cachedMembers;
+  const isFull = members.length >= 50;
+
+  const urgent = filterMembers(members.filter(m => m.status.type === 'kick_urgent')).sort((a,b) => b.status.priority - a.status.priority);
+  const watch = filterMembers(members.filter(m => m.status.type === 'kick_watch'));
+  const low = filterMembers(members.filter(m => m.status.type === 'low_fame'));
+  const ok = filterMembers(members.filter(m => ['ok', 'great', 'new', 'training'].includes(m.status.type)));
+
+  // Stats
+  const allMembers = members.filter(m => m.status.type !== 'ignore');
+  const activeCount = allMembers.filter(m => (m.weeks[0]?.fame || 0) >= 300).length;
+  const avgFame = allMembers.length ? Math.round(allMembers.reduce((s, m) => s + (m.weeks[0]?.fame || 0), 0) / allMembers.length) : 0;
+  const totalFame = allMembers.reduce((s, m) => s + (m.weeks[0]?.fame || 0), 0);
+
+  // Action summary
+  const actionItems = [
+    ...urgent.map(m => ({ name: m.name, action: 'Kick', cls: 'b-red', reason: '0 fame 2+ săptămâni' })),
+    ...watch.map(m => ({ name: m.name, action: 'Verifică', cls: 'b-yellow', reason: '0 săpt. asta, a jucat înainte' })),
+    ...members.filter(m => m.status.actions?.some(a => a.type === 'demote')).map(m => ({ name: m.name, action: 'Scoate Elder', cls: 'b-orange', reason: 'fame prea mic' })),
+    ...members.filter(m => m.status.actions?.some(a => a.type === 'elder_check')).map(m => ({ name: m.name, action: 'Verifică Elder', cls: 'b-yellow', reason: `inactiv ${Math.floor(lastSeenDays(m.lastSeen)||0)} zile — posibil probleme` })),
+    ...members.filter(m => m.status.actions?.some(a => a.type === 'elder_trend')).map(m => ({ name: m.name, action: 'Atenție trend', cls: 'b-yellow', reason: 'scădere consistentă de fame' })),
+    ...members.filter(m => m.status.actions?.some(a => a.type === 'promote')).map(m => ({ name: m.name, action: 'Dă Elder', cls: 'b-purple', reason: `${PROMOTE_THRESHOLD}+ fame` })),
+  ];
+
+  let html = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${urgent.length}</div><div class="stat-label">Kick urgent</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${watch.length}</div><div class="stat-label">De verificat</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${activeCount}</div><div class="stat-label">Activi (300+)</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--accent2)">${avgFame.toLocaleString()}</div><div class="stat-label">Fame mediu</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${totalFame.toLocaleString()}</div><div class="stat-label">Fame total clan</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:${isFull?'var(--red)':'var(--green)'}">${members.length}/50</div><div class="stat-label">Membri ${isFull?'— FULL':''}</div></div>
+    </div>
+  `;
+
+  if (cachedIsTrainingDay) {
+    html += `<div class="action-box" style="border-color:var(--muted)">
+      🏋️ Suntem în zilele de antrenament — fame-ul săptămânii curente încă nu s-a acumulat pentru nimeni.
+      Evaluarea de mai jos se bazează pe săptămânile deja încheiate.
+    </div>`;
+  }
+
+  if (actionItems.length) {
+    html += `<div class="action-box">
+      <h3>📋 Acțiuni recomandate acum</h3>
+      <div class="action-list">
+        ${actionItems.map(a => `
+          <div class="action-item">
+            <span class="badge ${a.cls}">${a.action}</span>
+            <span class="action-name">${a.name}</span>
+            <span class="action-reason">— ${a.reason}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (urgent.length) {
+    html += `<div class="sec-div">🔴 Kick urgent <span class="sec-count">${urgent.length}</span></div>`;
+    html += urgent.map(m => renderMember(m)).join('');
+  }
+  if (watch.length) {
+    html += `<div class="sec-div">🟡 Verifică — 0 săpt. asta, a jucat înainte <span class="sec-count">${watch.length}</span></div>`;
+    html += watch.map(m => renderMember(m)).join('');
+  }
+  if (low.length) {
+    html += `<div class="sec-div">🟠 Fame mic — sub 300 <span class="sec-count">${low.length}</span></div>`;
+    html += low.map(m => renderMember(m)).join('');
+  }
+  if (!urgent.length && !watch.length && !low.length) {
+    html += `<div class="empty">✅ Toți membrii sunt activi săptămâna asta!</div>`;
+  }
+
+  return html;
+}
+
+// ── ALL ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  const sorted = filterMembers([...cachedMembers]).sort((a,b) => (b.status.priority||0) - (a.status.priority||0));
+  if (!sorted.length) return `<div class="empty">Niciun jucător găsit.</div>`;
+  return sorted.map(m => renderMember(m)).join('');
+}
+
+// ── ELDER ──────────────────────────────────────────────────────────────────
+function renderElder() {
+  const members = cachedMembers;
+
+  // Scoate elderul direct
+  const demote = filterMembers(members.filter(m =>
+    m.role === 'elder' && m.status.actions?.some(a => a.type === 'demote')
+  ));
+  // Ține în evidență — inactiv 2+ zile, săpt. trecută era bun
+  const check = filterMembers(members.filter(m =>
+    m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_check') && !m.status.actions?.some(a => a.type === 'demote')
+  ));
+  // Trend descendent — avertizare
+  const trend = filterMembers(members.filter(m =>
+    m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_trend') && !m.status.actions?.some(a => a.type === 'demote') && !m.status.actions?.some(a => a.type === 'elder_check')
+  ));
+  // Merită elder (membri normali)
+  const promote = filterMembers(members.filter(m =>
+    m.role === 'member' && m.status.actions?.some(a => a.type === 'promote')
+  ));
+  // Elderi ok
+  const elderOk = filterMembers(members.filter(m =>
+    m.role === 'elder' &&
+    !m.status.actions?.some(a => a.type === 'demote') &&
+    !m.status.actions?.some(a => a.type === 'elder_check') &&
+    !m.status.actions?.some(a => a.type === 'elder_trend')
+  ));
+
+  let html = '';
+
+  if (demote.length) {
+    html += `<div class="sec-div">⬇️ Scoate Elderul <span class="sec-count">${demote.length}</span></div>`;
+    html += demote.map(m => renderMember(m)).join('');
+  }
+  if (check.length) {
+    html += `<div class="sec-div">⚠️ Ține în evidență — inactiv 2+ zile, verifica dacă are probleme <span class="sec-count">${check.length}</span></div>`;
+    html += check.map(m => renderMember(m)).join('');
+  }
+  if (trend.length) {
+    html += `<div class="sec-div">📉 Trend descendent — a fost activ, acum scade <span class="sec-count">${trend.length}</span></div>`;
+    html += trend.map(m => renderMember(m)).join('');
+  }
+  if (promote.length) {
+    html += `<div class="sec-div">⬆️ Merită Elder — ${PROMOTE_THRESHOLD}+ fame <span class="sec-count">${promote.length}</span></div>`;
+    html += promote.map(m => renderMember(m)).join('');
+  }
+  if (elderOk.length) {
+    html += `<div class="sec-div">✅ Elderi activi <span class="sec-count">${elderOk.length}</span></div>`;
+    html += elderOk.map(m => renderMember(m)).join('');
+  }
+  if (!html) return `<div class="empty">Niciun elder găsit.</div>`;
+  return html;
+}
+
+// ── TOP ────────────────────────────────────────────────────────────────────
+function renderTop() {
+  const members = filterMembers(cachedMembers.filter(m => m.status.type !== 'ignore'));
+  const byFame = [...members].sort((a, b) => (b.weeks[0]?.fame || 0) - (a.weeks[0]?.fame || 0));
+  const ranks = ['gold', 'silver', 'bronze'];
+  const medals = ['🥇', '🥈', '🥉'];
+
+  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+    <h3 style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:12px;">🏆 Top activi — săptămâna curentă</h3>`;
+
+  if (!byFame.length) { html += `<div class="empty">Niciun jucător găsit.</div>`; }
+  else {
+    byFame.slice(0, 15).forEach((m, i) => {
+      const fame = m.weeks[0]?.fame || 0;
+      const rankCls = ranks[i] || '';
+      const medal = medals[i] || `#${i+1}`;
+      html += `<div class="top-item">
+        <div class="top-rank ${rankCls}">${medal}</div>
+        <div class="top-name">${m.name} <span style="font-size:0.72rem;color:var(--muted)">${roleLabel(m.role)}</span></div>
+        <div class="top-fame" style="color:${fameColor(fame)}">${fame.toLocaleString()}</div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Săptămâna trecută
+  const byFameLast = [...members].sort((a, b) => (b.weeks[1]?.fame || 0) - (a.weeks[1]?.fame || 0));
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;">
+    <h3 style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:12px;">📅 Top activi — săptămâna trecută</h3>`;
+  byFameLast.slice(0, 10).forEach((m, i) => {
+    const fame = m.weeks[1]?.fame || 0;
+    html += `<div class="top-item">
+      <div class="top-rank ${ranks[i]||''}">${medals[i]||`#${i+1}`}</div>
+      <div class="top-name">${m.name}</div>
+      <div class="top-fame" style="color:${fameColor(fame)}">${fame.toLocaleString()}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  return html;
+}
+
+// ── RECRUIT ────────────────────────────────────────────────────────────────
+function renderRecruit() {
+  const members = cachedMembers;
+  const total = members.length;
+  const isFull = total >= 50;
+  const slotsLeft = 50 - total;
+  const kickCandidates = members.filter(m => m.status.type === 'kick_urgent').length;
+  const newMembers = members.filter(m => isNewMember(m.joinedAt));
+  const avgFame = total ? Math.round(members.filter(m=>m.status.type!=='ignore').reduce((s,m) => s + (m.weeks[0]?.fame||0), 0) / members.filter(m=>m.status.type!=='ignore').length) : 0;
+
+  const suggestions = [];
+  if (isFull && kickCandidates > 0) suggestions.push(`⚠️ Clanul e full. Ai ${kickCandidates} membri cu kick urgent — dă-i afară pentru a face loc.`);
+
+  if (!isFull && slotsLeft > 5) suggestions.push(`✅ Ai ${slotsLeft} locuri libere. Poți accepta membri noi fără să dai pe nimeni afară.`);
+
+
+
+  let html = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" style="color:${isFull?'var(--red)':'var(--green)'}">${total}/50</div><div class="stat-label">Membri actuali</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:${slotsLeft===0?'var(--red)':'var(--blue)'}">${slotsLeft}</div><div class="stat-label">Locuri libere</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${kickCandidates}</div><div class="stat-label">Kick urgent</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${newMembers.length}</div><div class="stat-label">Membri noi (7 zile)</div></div>
+    </div>
+
+    <div class="action-box">
+      
+      <div class="action-list">
+        ${suggestions.map(s => `<div class="action-item" style="font-size:0.85rem">${s}</div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  if (newMembers.length) {
+    html += `<div class="sec-div">🆕 Membri noi în ultimele 7 zile <span class="sec-count">${newMembers.length}</span></div>`;
+    html += newMembers.map(m => renderMember(m)).join('');
+  }
+
+  return html;
+}
+
+// ── MEMBER CARD ────────────────────────────────────────────────────────────
+function renderMember(m) {
+  const sm = STATUS_META[m.status.type] || STATUS_META['ok'];
+  const weekLabels = ['Curentă', 'Trecută', 'Acum 2 săpt.'];
+  const tracked = weeksTracked(m.joinedAt);
+  const dots = m.weeks.slice(0, tracked).map((w, i) => `
+    <div class="week-item" title="${weekLabels[i]}: ${w.fame.toLocaleString()} fame">
+      <div class="week-dot" style="background:${dotColor(w.fame)}"></div>
+      <div class="week-fame">${w.fame >= 1000 ? (w.fame/1000).toFixed(1)+'k' : w.fame}</div>
+      <div class="week-lbl">${weekLabels[i].substring(0,3)}</div>
+    </div>
+  `).join('');
+
+  const extraBadges = (m.status.actions || [])
+    .filter(a => a.type !== 'new')
+    .map(a => `<span class="badge ${a.cls}">${a.label}</span>`).join('');
+
+  const isNew = isNewMember(m.joinedAt);
+  const joinedLabel = m.joinedAt ? formatJoined(m.joinedAt) : '';
+  const showNewTag = isNew && m.status.type !== 'new';
+  const canFlag = m.role !== 'leader' && m.role !== 'coLeader' && !isNew;
+
+  // Last seen
+  const lastSeenLabel = formatLastSeen(m.lastSeen);
+  const lastSeenDaysVal = lastSeenDays(m.lastSeen);
+  const lastSeenColor = lastSeenDaysVal === null ? 'var(--muted)'
+    : lastSeenDaysVal < 1 ? 'var(--green)'
+    : lastSeenDaysVal < 2 ? 'var(--yellow)'
+    : 'var(--red)';
+
+  return `
+    <div class="member ${sm.border}">
+      <div>
+        <div class="member-name">${m.name}</div>
+        <div class="member-meta">${roleLabel(m.role)} · ${(m.trophies||0).toLocaleString()} 🏆</div>
+        ${joinedLabel ? `<div class="member-joined">📅 ${joinedLabel}</div>` : ''}
+        ${lastSeenLabel ? `<div class="member-joined" style="color:${lastSeenColor}">👁 ${lastSeenLabel}</div>` : ''}
+        <div class="weeks-row">${dots}</div>
+      </div>
+      <div class="member-right">
+        <div class="badges">
+          <span class="badge ${sm.cls}">${sm.label}</span>
+          ${showNewTag ? `<span class="badge b-blue">🆕 Nou</span>` : ''}
+          ${extraBadges}
+        </div>
+        ${canFlag ? `<button class="btn-sm" onclick="markAsNew('${m.tag}')" title="Chiar a intrat recent și tool-ul nu l-a prins? Apasă aici.">🆕 A intrat recent</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function markAsNew(tag) {
+  const clanTag = document.getElementById('clan-tag').value.trim();
+  try {
+    await fetch('/api/mark-new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clanTag, tag })
+    });
+  } catch(e) {
+    console.error('Nu am putut salva:', e.message);
+  }
+  loadClan(); // reîncărcăm din server ca să avem sigur datele corecte
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function resetSetup() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup-wrap').style.display = 'flex';
+}
+
+function showSetupError(msg) {
+  document.getElementById('setup-error').innerHTML = `<div class="error-box" style="margin-top:12px">❌ ${msg}</div>`;
+}
+</script>
+</body>
+</html>
