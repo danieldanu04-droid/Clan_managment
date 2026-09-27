@@ -130,10 +130,6 @@
     <h1>⚔️ Clan Manager</h1>
     <p>Clash Royale · gestionare membri</p>
     <div class="field">
-      <label>API Key</label>
-      <input type="password" id="api-key" placeholder="eyJ0eX...">
-    </div>
-    <div class="field">
       <label>Tag clan</label>
       <input type="text" id="clan-tag" placeholder="#Q2GC80P8" value="#Q2GC80P8">
     </div>
@@ -382,21 +378,21 @@ function dotColor(f) {
 
 function fameColor(f) { return dotColor(f); }
 
-// ── LOAD ───────────────────────────────────────────────────────────────────
+
 async function loadClan() {
-  const apiKey = document.getElementById('api-key').value.trim();
   const clanTag = document.getElementById('clan-tag').value.trim();
-  if (!apiKey || !clanTag) { showSetupError('Completează API key-ul și tagul.'); return; }
+  if (!clanTag) { showSetupError('Completează tagul.'); return; }
+
 
   document.getElementById('setup-wrap').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loading-wrap').style.display = 'flex';
 
-  try {
+   try {
     const res = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, clanTag })
+      body: JSON.stringify({ clanTag }) 
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -407,6 +403,7 @@ async function loadClan() {
     showSetupError('Eroare: ' + e.message);
   }
 }
+
 
 function processData({ clan, warLog, currentWar }) {
   cachedClan = clan;
