@@ -308,44 +308,44 @@ function getStatus(m, isTrainingDay) {
   if (!hasElder && w0 >= PROMOTE_THRESHOLD) actions.push({ type: 'promote', label: '⬆️ Dă Elder', cls: 'b-purple' });
 
   // ── REGULI ELDER ─────────────────────────────────────────────────────────
-  if (hasElder && !isNew) {
+  // În zilele de antrenament săpt. curentă nu contează (toți au 0), deci
+  // aplicăm ACELEAȘI reguli, dar decalate: "curentă" = ultima săptămână
+  // încheiată, "trecută" = cea dinainte, "acum 2 săpt." = încă una înapoi.
+  const f0 = isTrainingDay ? w1 : w0;
+  const f1 = isTrainingDay ? w2 : w1;
+  const f2 = isTrainingDay ? (tracked >= 3 ? (m.weeks[3]?.fame ?? null) : null) : w2;
+
+  if (hasElder && !isNew && f0 !== null) {
 
     // TREND DESCENDENT: 2000+ acum 2 săpt → sub 1500 săpt trecută → sub 500 acum
-    // În zilele de antrenament săpt. curentă e 0 pentru toți, deci nu o folosim.
-    const trendDown = !isTrainingDay && w2 !== null && w2 >= 2000 && w1 !== null && w1 < 1500 && w0 < 500;
+    const trendDown = f2 !== null && f2 >= 2000 && f1 !== null && f1 < 1500 && f0 < 500;
     if (trendDown) {
-      actions.push({ type: 'elder_trend', label: '⚠️ Trend descendent', cls: 'b-yellow' });
+      actions.push({ type: 'elder_trend', label: '⚠️ Trend descendent – verificare elder', cls: 'b-yellow' });
       // Nu scoatem elder, doar avertizăm
     }
 
-    // 2 SĂPTĂMÂNI LA RÂND SUB 700 (săpt. trecută + curentă) → scoate direct
-    // În antrenament comparăm ultimele 2 săptămâni încheiate (trecută + acum 2 săpt.).
-    const twoWeeksLow = isTrainingDay
-      ? (w1 !== null && w2 !== null && w1 < 700 && w2 < 700)
-      : (w1 !== null && w1 < 700 && w0 < 700);
+    // 2 SĂPTĂMÂNI LA RÂND SUB 700 (trecută + curentă) → scoate direct
+    const twoWeeksLow = f1 !== null && f1 < 700 && f0 < 700;
     if (twoWeeksLow && !trendDown) {
       actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
     }
 
-    // SUB 300 sau 0 fame săpt. curentă (nu în antrenament: toți au 0 atunci)
-    if (!isTrainingDay && w0 < 300) {
-      const hadGoodLastWeek = w1 !== null && w1 >= 1500;
-      if (hadGoodLastWeek) {
-        // Verificăm last seen
-        if (isInactiveOver2Days(m.lastSeen)) {
-          // Inactiv 2+ zile — posibil probleme, ține în evidență
-          actions.push({ type: 'elder_check', label: '⚠️ Ține în evidență', cls: 'b-yellow' });
-        } else {
-          // A fost activ recent — nu are scuză, scoatem elderul
-          if (!actions.find(a => a.type === 'demote')) {
-            actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
-          }
-        }
-      } else {
-        // Săpt. trecută era deja slabă (sub 1500) — scoatem direct
-        if (!actions.find(a => a.type === 'demote')) {
-          actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
-        }
+    // A avut 1500+ săpt. trecută și acum e sub 500:
+    //   - a fost activ recent -> scoatem elderul
+    //   - nevăzut de 2+ zile   -> nu-l scoatem, doar "elder sub evidență"
+    const hadGoodLastWeek = f1 !== null && f1 >= 1500;
+    if (hadGoodLastWeek && f0 < 500) {
+      if (isInactiveOver2Days(m.lastSeen)) {
+        actions.push({ type: 'elder_check', label: '👁 Elder sub evidență', cls: 'b-yellow' });
+      } else if (!actions.find(a => a.type === 'demote')) {
+        actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
+      }
+    }
+
+    // Săpt. trecută era deja slabă (sub 1500) și acum sub 300 sau 0 -> scoatem direct
+    if (!hadGoodLastWeek && f0 < 300) {
+      if (!actions.find(a => a.type === 'demote')) {
+        actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
       }
     }
   }
@@ -647,7 +647,7 @@ function renderElder() {
     html += demote.map(m => renderMember(m)).join('');
   }
   if (check.length) {
-    html += `<div class="sec-div">⚠️ Ține în evidență — inactiv 2+ zile, verifica dacă are probleme <span class="sec-count">${check.length}</span></div>`;
+    html += `<div class="sec-div">👁 Elder sub evidență — inactiv 2+ zile, verifică dacă are probleme <span class="sec-count">${check.length}</span></div>`;
     html += check.map(m => renderMember(m)).join('');
   }
   if (trend.length) {
