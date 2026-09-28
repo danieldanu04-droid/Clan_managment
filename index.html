@@ -309,20 +309,24 @@ function getStatus(m, isTrainingDay) {
   if (hasElder && !isNew) {
 
     // TREND DESCENDENT: 2000+ acum 2 săpt → sub 1500 săpt trecută → sub 500 acum
-    const trendDown = w2 !== null && w2 >= 2000 && w1 !== null && w1 < 1500 && w0 < 500;
+    // În zilele de antrenament săpt. curentă e 0 pentru toți, deci nu o folosim.
+    const trendDown = !isTrainingDay && w2 !== null && w2 >= 2000 && w1 !== null && w1 < 1500 && w0 < 500;
     if (trendDown) {
       actions.push({ type: 'elder_trend', label: '⚠️ Trend descendent', cls: 'b-yellow' });
       // Nu scoatem elder, doar avertizăm
     }
 
     // 2 SĂPTĂMÂNI LA RÂND SUB 700 (săpt. trecută + curentă) → scoate direct
-    const twoWeeksLow = w1 !== null && w1 < 700 && w0 < 700;
+    // În antrenament comparăm ultimele 2 săptămâni încheiate (trecută + acum 2 săpt.).
+    const twoWeeksLow = isTrainingDay
+      ? (w1 !== null && w2 !== null && w1 < 700 && w2 < 700)
+      : (w1 !== null && w1 < 700 && w0 < 700);
     if (twoWeeksLow && !trendDown) {
       actions.push({ type: 'demote', label: '⬇️ Scoate Elder', cls: 'b-orange' });
     }
 
-    // SUB 300 sau 0 fame săpt. curentă
-    if (w0 < 300) {
+    // SUB 300 sau 0 fame săpt. curentă (nu în antrenament: toți au 0 atunci)
+    if (!isTrainingDay && w0 < 300) {
       const hadGoodLastWeek = w1 !== null && w1 >= 1500;
       if (hadGoodLastWeek) {
         // Verificăm last seen
@@ -754,9 +758,9 @@ function renderMember(m, opts = {}) {
     return !!(m.joinedAt && end) && crMs(m.joinedAt) < crMs(end);
   };
   const dots = m.weeks.map((w, i) => ({ w, i })).filter(x => caught(x.i)).map(({ w, i }) => `
-    <div class="week-item" title="${weekLabels[i]}: ${w.fame.toLocaleString()} fame">
-      <div class="week-dot" style="background:${dotColor(w.fame)}"></div>
-      <div class="week-fame">${w.fame >= 1000 ? (w.fame/1000).toFixed(1)+'k' : w.fame}</div>
+    <div class="week-item" title="${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? 'Curentă: zile de antrenament, încă nu se numără' : weekLabels[i] + ': ' + w.fame.toLocaleString() + ' fame'}">
+      <div class="week-dot" style="background:${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? 'var(--border)' : dotColor(w.fame)}"></div>
+      <div class="week-fame">${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? '–' : (w.fame >= 1000 ? (w.fame/1000).toFixed(1)+'k' : w.fame)}</div>
       <div class="week-lbl">${weekLabels[i].substring(0,3)}</div>
     </div>
   `).join('');
