@@ -444,7 +444,11 @@ function processData({ clan, warLog, currentWar }) {
 
   const warMaps = wars.map(war => {
     const map = {};
-    (war.standings || []).forEach(s => {
+    // Jurnalul conține toate clanurile din cursă; le luăm doar pe ale noastre,
+    // altfel un jucător care apare și la alt clan ne-ar suprascrie fame-ul.
+    const all = war.standings || [];
+    const ours = all.filter(s => s.clan?.tag === clan.tag);
+    (ours.length ? ours : all).forEach(s => {
       (s.clan?.participants || []).forEach(p => {
         map[p.tag] = { fame: p.fame || 0, decksUsed: p.decksUsed || 0 };
       });
@@ -470,13 +474,14 @@ function processData({ clan, warLog, currentWar }) {
       currentMap[m.tag] || { fame: 0, decksUsed: 0 },
       warMaps[0]?.[m.tag] || { fame: 0, decksUsed: 0 },
       warMaps[1]?.[m.tag] || { fame: 0, decksUsed: 0 },
+      warMaps[2]?.[m.tag] || { fame: 0, decksUsed: 0 }, // a 4-a bilă, doar afișare
     ];
     // lastSeen vine direct din clan.memberList (câmpul e prezent în API)
     const lastSeen = m.lastSeen || null;
     const status = getStatus({ ...m, weeks, lastSeen }, isTrainingDay);
     // Doar pentru afișare: când s-a terminat fiecare război și dacă apare în el
-    const warEnds = [null, wars[0]?.createdDate || null, wars[1]?.createdDate || null];
-    const inWar = [true, !!warMaps[0]?.[m.tag], !!warMaps[1]?.[m.tag]];
+    const warEnds = [null, wars[0]?.createdDate || null, wars[1]?.createdDate || null, wars[2]?.createdDate || null];
+    const inWar = [true, !!warMaps[0]?.[m.tag], !!warMaps[1]?.[m.tag], !!warMaps[2]?.[m.tag]];
     return { ...m, weeks, lastSeen, status, warEnds, inWar };
   });
   cachedMembers = applyFullClanRule(cachedMembers, members.length >= 50, isTrainingDay);
@@ -745,7 +750,7 @@ function renderRecruit() {
 // ── MEMBER CARD ────────────────────────────────────────────────────────────
 function renderMember(m, opts = {}) {
   const sm = STATUS_META[m.status.type] || STATUS_META['ok'];
-  const weekLabels = ['Curentă', 'Trecută', 'Acum 2 săpt.'];
+  const weekLabels = ['Curentă', 'Trecută', 'Acum 2 săpt.', 'Acum 3 săpt.'];
   // O bilă apare doar dacă membrul a prins acea săptămână: fie apare în datele
   // războiului respectiv (dovada cea mai sigură), fie știm că a intrat în clan
   // înainte să se termine războiul. Dată de intrare necunoscută + absent din
