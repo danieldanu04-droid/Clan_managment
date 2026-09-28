@@ -116,9 +116,36 @@
   .top-fame { font-weight: 700; color: var(--green); }
 
   @media (max-width: 540px) {
-    .member { grid-template-columns: 1fr; }
-    .member-right { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 12px 14px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat-card { padding: 10px 12px; }
+    .stat-val { font-size: 1.15rem; }
+    .stat-label { font-size: 0.65rem; }
+
+    /* card mai compact: rămâne pe 2 coloane (nume/status), nu se mai
+       întinde pe toată lățimea decât dacă are un buton (vezi mai jos) */
+    .member { grid-template-columns: 1fr auto; padding: 10px 12px; gap: 8px; margin-bottom: 6px; }
+    .member-name { font-size: 0.86rem; }
+    .member-meta { font-size: 0.68rem; }
+    .member-joined { font-size: 0.64rem; display: inline-block; margin-top: 2px; }
+    .member-joined + .member-joined { margin-left: 8px; }
+
+    /* rândul de săptămâni pe orizontală: punct + cifră pe același rând,
+       fără eticheta de sub el (era cea mai mare consumatoare de înălțime) */
+    .weeks-row { margin-top: 5px; gap: 8px; }
+    .week-item { flex-direction: row; gap: 3px; }
+    .week-lbl { display: none; }
+    .week-dot { width: 9px; height: 9px; }
+    .week-fame { font-size: 0.66rem; }
+
+    .member-right { gap: 4px; }
+    .badge { font-size: 0.6rem; padding: 2px 7px; }
+
+    /* cardurile care au și un buton (ex: Șterge membru nou) au nevoie de
+       toată lățimea, ca butonul să nu fie înghesuit lângă nume */
+    .member:has(.btn-sm) { grid-template-columns: 1fr; }
+    .member:has(.btn-sm) .member-right { flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .member:has(.btn-sm) .btn-sm { width: 100%; margin-top: 6px; order: 3; }
   }
 </style>
 </head>
