@@ -84,7 +84,8 @@
   .week-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .week-dot { width: 13px; height: 13px; border-radius: 50%; }
   .week-fame { font-size: 0.65rem; color: var(--muted); }
-  .week-lbl { font-size: 0.6rem; color: var(--muted); }
+  .week-lbl { font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+  .week-lbl .l-short { display: none; }
   .member-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
   .badge { font-size: 0.7rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
@@ -132,9 +133,10 @@
 
     /* rândul de săptămâni pe orizontală: punct + cifră pe același rând,
        fără eticheta de sub el (era cea mai mare consumatoare de înălțime) */
-    .weeks-row { margin-top: 5px; gap: 8px; }
+    .weeks-row { margin-top: 5px; gap: 6px 10px; }
     .week-item { flex-direction: row; gap: 3px; }
-    .week-lbl { display: none; }
+    .week-lbl .l-long { display: none; }
+    .week-lbl .l-short { display: inline; }
     .week-dot { width: 9px; height: 9px; }
     .week-fame { font-size: 0.66rem; }
 
@@ -766,7 +768,7 @@ function renderMember(m, opts = {}) {
     <div class="week-item" title="${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? 'Curentă: zile de antrenament, încă nu se numără' : weekLabels[i] + ': ' + w.fame.toLocaleString() + ' fame'}">
       <div class="week-dot" style="background:${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? 'var(--border)' : dotColor(w.fame)}"></div>
       <div class="week-fame">${(i === 0 && cachedIsTrainingDay && w.fame === 0) ? '–' : (w.fame >= 1000 ? (w.fame/1000).toFixed(1)+'k' : w.fame)}</div>
-      <div class="week-lbl">${weekLabels[i].substring(0,3)}</div>
+      <div class="week-lbl"><span class="l-long">${weekLabels[i]}</span><span class="l-short">${['Acum','Trec.','2 săp','3 săp'][i]}</span></div>
     </div>
   `).join('');
 
