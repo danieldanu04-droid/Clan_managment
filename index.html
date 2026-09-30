@@ -179,7 +179,7 @@
     <div>
       <div class="topbar-title" id="tb-name">—</div>
       <div class="topbar-sub" id="tb-sub">—</div>
-      <div class="topbar-sub" id="tb-rankings" style="display:none"></div>
+      <div id="tb-rankings" style="display:none;margin-top:6px;font-size:0.8rem;font-weight:700;color:var(--yellow);background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);border-radius:8px;padding:4px 10px;width:fit-content;"></div>
     </div>
     <span id="tb-full" style="display:none" class="full-pill">⚠️ FULL 50/50</span>
     <div class="search-wrap">
@@ -509,7 +509,7 @@ function processData({ clan, warLog, currentWar, rankings }) {
       parts.push(`⚔️ Top ${cachedRankings.war.rank} Moldova${v != null ? ` (${v.toLocaleString()} trofee război)` : ''}`);
     }
     rankEl.textContent = parts.join(' · ');
-    rankEl.style.display = 'block';
+    rankEl.style.display = 'inline-block';
   } else {
     rankEl.style.display = 'none';
   }
@@ -823,7 +823,7 @@ function renderMember(m, opts = {}) {
         <div class="member-meta">${roleLabel(m.role)} · ${(m.trophies||0).toLocaleString()} 🏆</div>
         ${joinedLabel ? `<div class="member-joined">📅 ${joinedLabel}</div>` : ''}
         ${lastSeenLabel ? `<div class="member-joined" style="color:${lastSeenColor}">👁 ${lastSeenLabel}</div>` : ''}
-        ${showWarStats ? `<div class="member-joined" id="wdw-${domTag}">🛡️ victorii război: se încarcă…</div>` : ''}
+        ${showWarStats ? `<div class="member-joined" id="wdw-${domTag}">🛡️ Clan War Total Wins: se încarcă…</div>` : ''}
         <div class="weeks-row">${dots}</div>
       </div>
       <div class="member-right">
@@ -846,12 +846,12 @@ async function loadWarDayWins(tag) {
     const res = await fetch(`/api/player-stats?tag=${encodeURIComponent(tag)}`);
     const data = await res.json();
     if (data.error || data.warDayWins === null || data.warDayWins === undefined) {
-      el.textContent = '🛡️ victorii război: necunoscut';
+      el.textContent = '🛡️ Clan War Total Wins: necunoscut';
       return;
     }
-    el.textContent = `🛡️ victorii război (total, toate clanurile): ${data.warDayWins}`;
+    el.textContent = `🛡️ Clan War Total Wins: ${data.warDayWins}`;
   } catch(e) {
-    if (el) el.textContent = '🛡️ victorii război: eroare la încărcare';
+    if (el) el.textContent = '🛡️ Clan War Total Wins: eroare la încărcare';
   }
 }
 
