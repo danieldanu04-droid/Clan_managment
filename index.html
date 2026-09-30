@@ -500,11 +500,13 @@ function processData({ clan, warLog, currentWar, rankings }) {
   const rankEl = document.getElementById('tb-rankings');
   if (cachedRankings && (cachedRankings.trophies || cachedRankings.war)) {
     const parts = [];
-    if (cachedRankings.trophies) {
-      parts.push(`🏆 Top ${cachedRankings.trophies.rank} Moldova (${cachedRankings.trophies.value.toLocaleString()} trofee)`);
+    if (cachedRankings.trophies && cachedRankings.trophies.rank) {
+      const v = cachedRankings.trophies.value;
+      parts.push(`🏆 Top ${cachedRankings.trophies.rank} Moldova${v != null ? ` (${v.toLocaleString()} trofee)` : ''}`);
     }
-    if (cachedRankings.war) {
-      parts.push(`⚔️ Top ${cachedRankings.war.rank} Moldova (${cachedRankings.war.value.toLocaleString()} trofee război)`);
+    if (cachedRankings.war && cachedRankings.war.rank) {
+      const v = cachedRankings.war.value;
+      parts.push(`⚔️ Top ${cachedRankings.war.rank} Moldova${v != null ? ` (${v.toLocaleString()} trofee război)` : ''}`);
     }
     rankEl.textContent = parts.join(' · ');
     rankEl.style.display = 'block';

@@ -137,9 +137,17 @@ async function getMoldovaRankings(apiKey, ourTagNormalized) {
       findClanInRanking(`/v1/locations/${locId}/rankings/clans`, apiKey, ourTagNormalized),
       findClanInRanking(`/v1/locations/${locId}/rankings/clanwars`, apiKey, ourTagNormalized)
     ]);
+    // Numele câmpului cu scorul poate diferi față de documentație, de-aia
+    // încercăm mai multe variante în loc să presupunem unul singur.
+    const pick = (obj, keys) => {
+      for (const k of keys) if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+      return null;
+    };
+    const trophyVal = trophyEntry && pick(trophyEntry, ['clanScore', 'trophies', 'score']);
+    const warVal = warEntry && pick(warEntry, ['clanWarTrophies', 'warTrophies', 'clanScore', 'score']);
     return {
-      trophies: trophyEntry ? { rank: trophyEntry.rank, value: trophyEntry.clanScore } : null,
-      war: warEntry ? { rank: warEntry.rank, value: warEntry.clanWarTrophies } : null
+      trophies: (trophyEntry && trophyVal !== null) ? { rank: trophyEntry.rank, value: trophyVal } : null,
+      war: (warEntry && warVal !== null) ? { rank: warEntry.rank, value: warVal } : null
     };
   } catch (e) {
     console.error('Eroare clasamente Moldova:', e.message);
