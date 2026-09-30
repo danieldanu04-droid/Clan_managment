@@ -208,29 +208,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/player-stats') {
-    try {
-      const apiKey = process.env.CLASH_API_KEY;
-      if (!apiKey) throw new Error('CLASH_API_KEY nu este setat.');
-      const tag = url.searchParams.get('tag');
-      if (!tag) throw new Error('Lipsește tagul jucătorului.');
-      const normalizedTag = (tag.startsWith('#') ? tag : '#' + tag).toUpperCase();
-      const encTag = encodeURIComponent(normalizedTag);
-      const player = await apiRequest(`/v1/players/${encTag}`, apiKey);
-      if (player.reason) throw new Error(player.reason + ': ' + player.message);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        warDayWins: player.warDayWins ?? null,
-        currentClanTag: player.clan?.tag || null,
-        currentClanName: player.clan?.name || null
-      }));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
   if (req.method === 'POST' && url.pathname === '/api/mark-new') {
     let body = '';
     req.on('data', chunk => body += chunk);
