@@ -179,6 +179,7 @@
     <div>
       <div class="topbar-title" id="tb-name">—</div>
       <div class="topbar-sub" id="tb-sub">—</div>
+      <div class="topbar-sub" id="tb-rankings" style="display:none"></div>
     </div>
     <span id="tb-full" style="display:none" class="full-pill">⚠️ FULL 50/50</span>
     <div class="search-wrap">
@@ -209,6 +210,7 @@ let cachedMembers = [];
 let cachedClan = null;
 let cachedWarsCount = 0;
 let cachedIsTrainingDay = false;
+let cachedRankings = null;
 let currentRaceStart = null; // timestamp start săptămână curentă
 
 // ── REGULI ─────────────────────────────────────────────────────────────────
@@ -438,8 +440,9 @@ async function loadClan() {
 }
 
 
-function processData({ clan, warLog, currentWar }) {
+function processData({ clan, warLog, currentWar, rankings }) {
   cachedClan = clan;
+  cachedRankings = rankings || null;
   const members = clan.memberList || [];
   const wars = (warLog.items || []).slice(0, 3);
   cachedWarsCount = wars.length;
@@ -493,6 +496,21 @@ function processData({ clan, warLog, currentWar }) {
   document.getElementById('tb-sub').textContent = `${members.length}/50 membri · Istoric ${wars.length + 1} săptămâni`;
   const fullPill = document.getElementById('tb-full');
   fullPill.style.display = members.length >= 50 ? 'inline-block' : 'none';
+
+  const rankEl = document.getElementById('tb-rankings');
+  if (cachedRankings && (cachedRankings.trophies || cachedRankings.war)) {
+    const parts = [];
+    if (cachedRankings.trophies) {
+      parts.push(`🏆 Top ${cachedRankings.trophies.rank} Moldova (${cachedRankings.trophies.value.toLocaleString()} trofee)`);
+    }
+    if (cachedRankings.war) {
+      parts.push(`⚔️ Top ${cachedRankings.war.rank} Moldova (${cachedRankings.war.value.toLocaleString()} trofee război)`);
+    }
+    rankEl.textContent = parts.join(' · ');
+    rankEl.style.display = 'block';
+  } else {
+    rankEl.style.display = 'none';
+  }
 
   document.getElementById('loading-wrap').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -743,7 +761,10 @@ function renderRecruit() {
 
   if (newMembers.length) {
     html += `<div class="sec-div">🆕 Membri noi în ultimele 7 zile <span class="sec-count">${newMembers.length}</span></div>`;
-    html += newMembers.map(m => renderMember(m, { showRemoveNew: true })).join('');
+    html += newMembers.map(m => renderMember(m, { showRemoveNew: true, showWarStats: true })).join('');
+    // Cerem statisticile de la server doar pentru acești membri noi (nu pentru
+    // toți 50), ca să nu multiplicăm cererile către API la fiecare refresh.
+    setTimeout(() => newMembers.forEach(m => loadWarDayWins(m.tag)), 0);
   }
 
   return html;
@@ -782,6 +803,8 @@ function renderMember(m, opts = {}) {
   // Butonul de ștergere din "membri noi" apare doar acolo unde e cerut explicit
   // (secțiunea Recrutare), nu pe orice card de membru.
   const showRemoveNew = !!opts.showRemoveNew && isNew;
+  const domTag = m.tag.replace('#', '');
+  const showWarStats = !!opts.showWarStats;
 
   // Last seen
   const lastSeenLabel = formatLastSeen(m.lastSeen);
@@ -798,6 +821,7 @@ function renderMember(m, opts = {}) {
         <div class="member-meta">${roleLabel(m.role)} · ${(m.trophies||0).toLocaleString()} 🏆</div>
         ${joinedLabel ? `<div class="member-joined">📅 ${joinedLabel}</div>` : ''}
         ${lastSeenLabel ? `<div class="member-joined" style="color:${lastSeenColor}">👁 ${lastSeenLabel}</div>` : ''}
+        ${showWarStats ? `<div class="member-joined" id="wdw-${domTag}">🛡️ victorii război: se încarcă…</div>` : ''}
         <div class="weeks-row">${dots}</div>
       </div>
       <div class="member-right">
@@ -810,6 +834,23 @@ function renderMember(m, opts = {}) {
       </div>
     </div>
   `;
+}
+
+async function loadWarDayWins(tag) {
+  const domTag = tag.replace('#', '');
+  const el = document.getElementById(`wdw-${domTag}`);
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/player-stats?tag=${encodeURIComponent(tag)}`);
+    const data = await res.json();
+    if (data.error || data.warDayWins === null || data.warDayWins === undefined) {
+      el.textContent = '🛡️ victorii război: necunoscut';
+      return;
+    }
+    el.textContent = `🛡️ victorii război (total, toate clanurile): ${data.warDayWins}`;
+  } catch(e) {
+    if (el) el.textContent = '🛡️ victorii război: eroare la încărcare';
+  }
 }
 
 async function removeNewMember(tag) {

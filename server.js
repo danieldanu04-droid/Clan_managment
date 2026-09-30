@@ -110,6 +110,43 @@ function apiRequest(apiPath, apiKey) {
   });
 }
 
+// ── CLASAMENTE (Moldova) ────────────────────────────────────────────────────
+let moldovaLocationIdCache = null;
+
+async function getMoldovaLocationId(apiKey) {
+  if (moldovaLocationIdCache) return moldovaLocationIdCache;
+  const res = await apiRequest('/v1/locations', apiKey);
+  const md = (res.items || []).find(l => l.name === 'Moldova');
+  if (md) moldovaLocationIdCache = md.id;
+  return moldovaLocationIdCache;
+}
+
+// Caută clanul nostru într-un top (până la 200 de rezultate); dacă nu e în
+// top, întoarce null — API-ul nu oferă poziții mai jos de atât.
+async function findClanInRanking(apiPath, apiKey, ourTagNormalized) {
+  const res = await apiRequest(apiPath, apiKey);
+  const found = (res.items || []).find(c => c.tag === ourTagNormalized);
+  return found || null;
+}
+
+async function getMoldovaRankings(apiKey, ourTagNormalized) {
+  try {
+    const locId = await getMoldovaLocationId(apiKey);
+    if (!locId) return null;
+    const [trophyEntry, warEntry] = await Promise.all([
+      findClanInRanking(`/v1/locations/${locId}/rankings/clans`, apiKey, ourTagNormalized),
+      findClanInRanking(`/v1/locations/${locId}/rankings/clanwars`, apiKey, ourTagNormalized)
+    ]);
+    return {
+      trophies: trophyEntry ? { rank: trophyEntry.rank, value: trophyEntry.clanScore } : null,
+      war: warEntry ? { rank: warEntry.rank, value: warEntry.clanWarTrophies } : null
+    };
+  } catch (e) {
+    console.error('Eroare clasamente Moldova:', e.message);
+    return null;
+  }
+}
+
 const HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const htmlStat = fs.statSync(path.join(__dirname, 'index.html'));
 
@@ -149,14 +186,40 @@ const server = http.createServer(async (req, res) => {
 
         applyFirstSeen(tag, clan.memberList || []);
 
+        // Clasamentele nu sunt critice — dacă pică, nu blocăm restul site-ului.
+        const rankings = await getMoldovaRankings(apiKey, normalizedTag);
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ clan, warLog, currentWar }));
+        res.end(JSON.stringify({ clan, warLog, currentWar, rankings }));
       } catch(e) {
         console.error('API Error:', e.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       }
     });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/player-stats') {
+    try {
+      const apiKey = process.env.CLASH_API_KEY;
+      if (!apiKey) throw new Error('CLASH_API_KEY nu este setat.');
+      const tag = url.searchParams.get('tag');
+      if (!tag) throw new Error('Lipsește tagul jucătorului.');
+      const normalizedTag = (tag.startsWith('#') ? tag : '#' + tag).toUpperCase();
+      const encTag = encodeURIComponent(normalizedTag);
+      const player = await apiRequest(`/v1/players/${encTag}`, apiKey);
+      if (player.reason) throw new Error(player.reason + ': ' + player.message);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        warDayWins: player.warDayWins ?? null,
+        currentClanTag: player.clan?.tag || null,
+        currentClanName: player.clan?.name || null
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
