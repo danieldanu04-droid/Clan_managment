@@ -471,7 +471,10 @@ function processData({ clan, warLog, currentWar, rankings }) {
   // Zilele de antrenament (înainte să înceapă zilele de război) - fame-ul
   // săptămânii curente e 0 pentru absolut toată lumea, nu doar pentru cei
   // inactivi, pentru că pur și simplu nu s-au tras încă lupte de război.
-  const isTrainingDay = !!currentWar && currentWar.periodType && currentWar.periodType !== 'warDay';
+  // Verificăm explicit "e antrenament?" în loc de "nu e warDay?" — ca să nu
+  // confundăm o zi de luptă cu antrenament dacă jocul folosește alt nume
+  // exact pentru ziua de luptă decât ne așteptam.
+  const isTrainingDay = !!currentWar && currentWar.periodType === 'training';
   cachedIsTrainingDay = isTrainingDay;
 
   cachedMembers = members.map(m => {
