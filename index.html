@@ -413,6 +413,13 @@ function dotColor(f) {
 
 function fameColor(f) { return dotColor(f); }
 
+// Sortează un grup după fame-ul săptămânii curente, crescător (cei cu
+// cele mai puține medalii primii) — folosit în interiorul fiecărei
+// secțiuni/grup, nu schimbă ordinea grupurilor între ele.
+function sortByFameAsc(arr) {
+  return [...arr].sort((a, b) => (a.weeks[0]?.fame ?? 0) - (b.weeks[0]?.fame ?? 0));
+}
+
 
 async function loadClan() {
   const clanTag = document.getElementById('clan-tag').value.trim();
@@ -555,10 +562,10 @@ function renderPriority() {
   const members = cachedMembers;
   const isFull = members.length >= 50;
 
-  const urgent = filterMembers(members.filter(m => m.status.type === 'kick_urgent')).sort((a,b) => b.status.priority - a.status.priority);
-  const watch = filterMembers(members.filter(m => m.status.type === 'kick_watch'));
-  const low = filterMembers(members.filter(m => m.status.type === 'low_fame'));
-  const ok = filterMembers(members.filter(m => ['ok', 'great', 'new', 'training'].includes(m.status.type)));
+  const urgent = sortByFameAsc(filterMembers(members.filter(m => m.status.type === 'kick_urgent')));
+  const watch = sortByFameAsc(filterMembers(members.filter(m => m.status.type === 'kick_watch')));
+  const low = sortByFameAsc(filterMembers(members.filter(m => m.status.type === 'low_fame')));
+  const ok = sortByFameAsc(filterMembers(members.filter(m => ['ok', 'great', 'new', 'training'].includes(m.status.type))));
 
   // Stats
   const allMembers = members.filter(m => m.status.type !== 'ignore');
@@ -630,7 +637,11 @@ function renderPriority() {
 
 // ── ALL ────────────────────────────────────────────────────────────────────
 function renderAll() {
-  const sorted = filterMembers([...cachedMembers]).sort((a,b) => (b.status.priority||0) - (a.status.priority||0));
+  const sorted = filterMembers([...cachedMembers]).sort((a,b) => {
+    const pd = (b.status.priority||0) - (a.status.priority||0);
+    if (pd !== 0) return pd;
+    return (a.weeks[0]?.fame ?? 0) - (b.weeks[0]?.fame ?? 0);
+  });
   if (!sorted.length) return `<div class="empty">Niciun jucător găsit.</div>`;
   return sorted.map(m => renderMember(m)).join('');
 }
@@ -640,28 +651,28 @@ function renderElder() {
   const members = cachedMembers;
 
   // Scoate elderul direct
-  const demote = filterMembers(members.filter(m =>
+  const demote = sortByFameAsc(filterMembers(members.filter(m =>
     m.role === 'elder' && m.status.actions?.some(a => a.type === 'demote')
-  ));
+  )));
   // Ține în evidență — inactiv 2+ zile, săpt. trecută era bun
-  const check = filterMembers(members.filter(m =>
+  const check = sortByFameAsc(filterMembers(members.filter(m =>
     m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_check') && !m.status.actions?.some(a => a.type === 'demote')
-  ));
+  )));
   // Trend descendent — avertizare
-  const trend = filterMembers(members.filter(m =>
+  const trend = sortByFameAsc(filterMembers(members.filter(m =>
     m.role === 'elder' && m.status.actions?.some(a => a.type === 'elder_trend') && !m.status.actions?.some(a => a.type === 'demote') && !m.status.actions?.some(a => a.type === 'elder_check')
-  ));
+  )));
   // Merită elder (membri normali)
-  const promote = filterMembers(members.filter(m =>
+  const promote = sortByFameAsc(filterMembers(members.filter(m =>
     m.role === 'member' && m.status.actions?.some(a => a.type === 'promote')
-  ));
+  )));
   // Elderi ok
-  const elderOk = filterMembers(members.filter(m =>
+  const elderOk = sortByFameAsc(filterMembers(members.filter(m =>
     m.role === 'elder' &&
     !m.status.actions?.some(a => a.type === 'demote') &&
     !m.status.actions?.some(a => a.type === 'elder_check') &&
     !m.status.actions?.some(a => a.type === 'elder_trend')
-  ));
+  )));
 
   let html = '';
 
@@ -738,7 +749,7 @@ function renderRecruit() {
   const isFull = total >= 50;
   const slotsLeft = 50 - total;
   const kickCandidates = members.filter(m => m.status.type === 'kick_urgent').length;
-  const newMembers = members.filter(m => isNewMember(m.joinedAt));
+  const newMembers = sortByFameAsc(members.filter(m => isNewMember(m.joinedAt)));
   const avgFame = total ? Math.round(members.filter(m=>m.status.type!=='ignore').reduce((s,m) => s + (m.weeks[0]?.fame||0), 0) / members.filter(m=>m.status.type!=='ignore').length) : 0;
 
   const suggestions = [];
