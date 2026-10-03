@@ -2,12 +2,39 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('redis');
 
 const PORT = process.env.PORT || 3000; // Render folosește porturi dinamice, adăugat suport nativ
 const DATA_FILE = path.join(__dirname, 'members-data.json');
+const STORE_KEY = 'clan-manager:members-store';
 
+// ── STOCARE (Key Value pe Render, cu fișierul local ca rezervă) ───────────
+// Fișierul local se resetează la fiecare deploy (discul nu e permanent pe
+// planul gratuit), de-aia ținem datele reale în Key Value. Dacă Key Value nu
+// e configurat sau pică temporar, nu lăsăm site-ul să cadă — folosim
+// fișierul local ca rezervă, chiar dacă acela nu rezistă la deploy-uri.
+let redisClientPromise = null;
 
-function loadStore() {
+function getRedis() {
+  if (!process.env.STORE_URL) return null;
+  if (!redisClientPromise) {
+    const client = createClient({ url: process.env.STORE_URL });
+    client.on('error', (err) => console.error('Eroare Key Value:', err.message));
+    redisClientPromise = client.connect().then(() => client);
+  }
+  return redisClientPromise;
+}
+
+async function loadStore() {
+  try {
+    const client = await getRedis();
+    if (client) {
+      const raw = await client.get(STORE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }
+  } catch (e) {
+    console.error('Key Value indisponibil la citire, folosesc fișierul local:', e.message);
+  }
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } catch (e) {
@@ -15,8 +42,22 @@ function loadStore() {
   }
 }
 
-function saveStore(store) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
+async function saveStore(store) {
+  const json = JSON.stringify(store);
+  try {
+    const client = await getRedis();
+    if (client) {
+      await client.set(STORE_KEY, json);
+      return;
+    }
+  } catch (e) {
+    console.error('Key Value indisponibil la scriere, salvez doar local:', e.message);
+  }
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Eroare scriere fișier local:', e.message);
+  }
 }
 
 
@@ -24,8 +65,8 @@ function toCrDateFormat(isoString) {
   return isoString.replace(/[-:]/g, '').replace(/\.\d{3}Z\$/, '.000Z');
 }
 
-function applyFirstSeen(clanTag, members) {
-  const store = loadStore();
+async function applyFirstSeen(clanTag, members) {
+  const store = await loadStore();
 
   
   if (!store[clanTag]) {
@@ -65,25 +106,25 @@ function applyFirstSeen(clanTag, members) {
     if (!currentTags.has(tag)) { delete clanStore[tag]; changed = true; }
   });
 
-  if (changed) saveStore(store);
+  if (changed) await saveStore(store);
 }
 
-function setManualNew(clanTag, tag) {
-  const store = loadStore();
+async function setManualNew(clanTag, tag) {
+  const store = await loadStore();
   if (!store[clanTag]) store[clanTag] = {};
   store[clanTag][tag] = new Date().toISOString();
-  saveStore(store);
+  await saveStore(store);
 }
 
 // Scoate membrul din lista de "noi": punem null (= "există deja, dată
 // necunoscută"), NU ștergem cheia — dacă am șterge-o complet, la
 // următoarea rulare applyFirstSeen l-ar considera intrat chiar acum
 // (isFirstRunEver e false) și l-ar marca din nou ca nou.
-function setManualNotNew(clanTag, tag) {
-  const store = loadStore();
+async function setManualNotNew(clanTag, tag) {
+  const store = await loadStore();
   if (!store[clanTag]) store[clanTag] = {};
   store[clanTag][tag] = null;
-  saveStore(store);
+  await saveStore(store);
 }
 
 function apiRequest(apiPath, apiKey) {
@@ -192,7 +233,7 @@ const server = http.createServer(async (req, res) => {
 
         if (clan.reason) throw new Error(clan.reason + ': ' + clan.message);
 
-        applyFirstSeen(tag, clan.memberList || []);
+        await applyFirstSeen(tag, clan.memberList || []);
 
         // Clasamentele nu sunt critice — dacă pică, nu blocăm restul site-ului.
         const rankings = await getMoldovaRankings(apiKey, normalizedTag);
@@ -211,12 +252,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/mark-new') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { clanTag, tag } = JSON.parse(body);
         const normalizedTag = (clanTag.startsWith('#') ? clanTag : '#' + clanTag).toUpperCase();
         const encTag = encodeURIComponent(normalizedTag);
-        setManualNew(encTag, tag);
+        await setManualNew(encTag, tag);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch(e) {
@@ -230,12 +271,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/remove-new') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { clanTag, tag } = JSON.parse(body);
         const normalizedTag = (clanTag.startsWith('#') ? clanTag : '#' + clanTag).toUpperCase();
         const encTag = encodeURIComponent(normalizedTag);
-        setManualNotNew(encTag, tag);
+        await setManualNotNew(encTag, tag);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch(e) {
